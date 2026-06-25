@@ -437,6 +437,19 @@ lang="es">
     }
     .info-tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
 
+    /* ── PLAN SELECTOR (Platino / Gold) ── */
+    .plan-btn {
+      background: var(--black-3); border: 1px solid var(--black-4);
+      border-radius: 12px; padding: 12px 14px; text-align: center;
+      cursor: pointer; transition: all 0.2s;
+      font-family: 'Urbanist', sans-serif; color: var(--text-muted);
+    }
+    .plan-btn:hover { border-color: var(--gold-border); transform: translateY(-1px); }
+    .plan-btn-name { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; margin-bottom: 4px; text-transform: uppercase; }
+    .plan-btn-price { font-size: 17px; font-weight: 900; line-height: 1; }
+    .plan-btn.active-platino { background: var(--gold-dim); border-color: var(--gold-border); color: var(--gold); }
+    .plan-btn.active-gold { background: rgba(212,145,74,0.10); border-color: rgba(212,145,74,0.28); color: var(--amber); }
+
     /* inputs no spinner */
     input[type=number]::-webkit-inner-spin-button,
     input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
@@ -879,16 +892,25 @@ lang="es">
         <div class="calc-left">
           <div class="calc-section-label">📋 Configura tu empresa · Precios en USD</div>
 
-          <!-- Costo plataforma mensual -->
-          <div class="input-group">
-            <label class="input-label">Costo de la plataforma mensual
-            </label>
-            <div class="input-row">
-              <span class="input-prefix">$</span>
-              <input id="costo_plataforma" class="calc-input" type="number" value="1000" step="1" readonly style="opacity:0.7;cursor:not-allowed;">
-              <span class="input-suffix">USD/mes</span>
+          <!-- ── Plan selector: Platino / Gold ── -->
+          <div style="margin-bottom:24px;">
+            <span class="calc-section-label" style="display:block;margin-bottom:10px;">🏷️ Plan de Suscripción</span>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <button id="btn-platino" class="plan-btn active-platino" onclick="selectPlan('platino')">
+                <div class="plan-btn-name">Cliente Platino</div>
+                <div class="plan-btn-price">$1,000 USD/mes</div>
+              </button>
+              <button id="btn-gold" class="plan-btn" onclick="selectPlan('gold')">
+                <div class="plan-btn-name">Cliente Gold</div>
+                <div class="plan-btn-price">$300 USD/mes</div>
+              </button>
             </div>
-            <div class="input-hint">Equivale a <span id="hint_plat_ano">USD 12,000</span> / año</div>
+          </div>
+
+          <!-- Costo plataforma mensual — oculto, se controla por selector de plan -->
+          <div class="input-group" style="display:none;">
+            <input id="costo_plataforma" type="number" value="1000" readonly style="visibility:hidden;position:absolute;">
+            <span id="hint_plat_ano" style="visibility:hidden;position:absolute;"></span>
           </div>
 
           <!-- Descuento -->
@@ -990,7 +1012,7 @@ lang="es">
           <div class="calc-section-label">🎁 Beneficios & Ahorros Estimados</div>
 
           <!-- Cashback -->
-          <div class="result-row">
+          <div class="result-row" id="res_cb_row">
             <div class="result-row-top">
               <div>
                 <div class="result-name">Cashback 1% · 6 meses</div>
@@ -1171,6 +1193,27 @@ lang="es">
 
 <script>
 // ──────────────────────────────────
+//  PLAN SELECTOR
+// ──────────────────────────────────
+var selectedPlan = 'platino'; // 'platino' | 'gold'
+
+function selectPlan(plan) {
+  selectedPlan = plan;
+  var bP = document.getElementById('btn-platino');
+  var bG = document.getElementById('btn-gold');
+  if (plan === 'platino') {
+    document.getElementById('costo_plataforma').value = 1000;
+    bP.className = 'plan-btn active-platino';
+    bG.className = 'plan-btn';
+  } else {
+    document.getElementById('costo_plataforma').value = 300;
+    bP.className = 'plan-btn';
+    bG.className = 'plan-btn active-gold';
+  }
+  recalc();
+}
+
+// ──────────────────────────────────
 //  PRICING DATA
 // ──────────────────────────────────
 var TIERS = [
@@ -1313,8 +1356,9 @@ function recalc() {
   if (hintEl) hintEl.textContent = fusd(platAnoUSD); // USD 1,073 × 12
 
   // ── Savings ──
-  // Cashback 1% × 6 months (gasto in USD)
-  var cbUSD = gastoMesUSD * 0.01 * 6;
+  // Cashback 1% × 6 months (gasto in USD) — solo aplica en plan Platino
+  var isGold = (selectedPlan === 'gold');
+  var cbUSD = isGold ? 0 : gastoMesUSD * 0.01 * 6;
   var cbCOP = cbUSD * tdc;
 
   // Cajero savings (gasto in USD already)
@@ -1343,8 +1387,13 @@ function recalc() {
   setText('res_total_cop', '≈ COP ' + fcop(totalAnoCOP) + ' / año');
 
   // Cashback
-  setText('res_cb_usd', fusd(cbUSD));
-  setText('res_cb_cop', '≈ COP ' + fcop(cbCOP));
+  if (isGold) {
+    hide('res_cb_row');
+  } else {
+    show('res_cb_row');
+    setText('res_cb_usd', fusd(cbUSD));
+    setText('res_cb_cop', '≈ COP ' + fcop(cbCOP));
+  }
 
   // Cajero
   if (cajeroActivo && cajAnoUSD > 0) {
